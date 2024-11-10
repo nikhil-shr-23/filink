@@ -1,40 +1,108 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react'
+import React, { useRef, useReducer, useCallback, useState, useEffect } from 'react'
 import Card from './Card'
 import AddCardForm from './AddCardForm'
 import Popup from './Popup'
-import { FaPlus } from 'react-icons/fa'
+import { FaPlus, FaUndo, FaRedo } from 'react-icons/fa'
+
+// Define action types
+const ADD_CARD = 'ADD_CARD'
+const DELETE_CARD = 'DELETE_CARD'
+const EDIT_CARD = 'EDIT_CARD'
+const UNDO = 'UNDO'
+const REDO = 'REDO'
+
+// Reducer function
+function reducer(state, action) {
+  switch (action.type) {
+    case ADD_CARD:
+      return {
+        past: [...state.past, state.present],
+        present: [...state.present, action.card],
+        future: []
+      }
+    case DELETE_CARD:
+      return {
+        past: [...state.past, state.present],
+        present: state.present.filter(card => card.id !== action.id),
+        future: []
+      }
+    case EDIT_CARD:
+      return {
+        past: [...state.past, state.present],
+        present: state.present.map(card => 
+          card.id === action.id ? { ...card, ...action.updates } : card
+        ),
+        future: []
+      }
+    case UNDO:
+      if (state.past.length === 0) return state
+      const previous = state.past[state.past.length - 1]
+      return {
+        past: state.past.slice(0, -1),
+        present: previous,
+        future: [state.present, ...state.future]
+      }
+    case REDO:
+      if (state.future.length === 0) return state
+      const next = state.future[0]
+      return {
+        past: [...state.past, state.present],
+        present: next,
+        future: state.future.slice(1)
+      }
+    default:
+      return state
+  }
+}
 
 function Foreground() {
     const ref = useRef(null)
-    const [cards, setCards] = useState([
-        {id: 1, desc: "Example text 1", filesize:".8mb", close: false, tag:{isOpen: true, tagTitle: "Card 1", tagColor: "green"}, file: null},
-        {id: 2, desc: "Hellow Sunshine, hope you're doing good", filesize:".8mb", close: false, tag:{isOpen: true, tagTitle: "Card 2", tagColor: "blue"}, file: null},
-        {id: 3, desc: "Example text 3", filesize:".8mb", close: false, tag:{isOpen: true, tagTitle: "Card 3", tagColor: "green"}, file: null}
-    ])
+    const [state, dispatch] = useReducer(reducer, {
+        past: [],
+        present: [
+            {id: 1, desc: "Example text 1", close: false, tag:{isOpen: true, tagTitle: "Card 1", tagColor: "green"}, file: null},
+            {id: 2, desc: "Hello Sunshine, hope you're doing good", close: false, tag:{isOpen: true, tagTitle: "Card 2", tagColor: "blue"}, file: null},
+            {id: 3, desc: "Example text 3", close: false, tag:{isOpen: true, tagTitle: "Card 3", tagColor: "green"}, file: null}
+        ],
+        future: []
+    })
     const [showPopup, setShowPopup] = useState(false)
     const [showAddForm, setShowAddForm] = useState(false)
     const [isButtonExpanded, setIsButtonExpanded] = useState(false)
 
     const addCard = useCallback((newCard) => {
-        setCards(prevCards => [...prevCards, { ...newCard, id: Date.now(), file: null }])
+        dispatch({ type: ADD_CARD, card: { ...newCard, id: Date.now(), file: null } })
         setShowAddForm(false)
     }, [])
 
     const deleteCard = useCallback((id) => {
-        setCards(prevCards => prevCards.filter(card => card.id !== id))
+        dispatch({ type: DELETE_CARD, id })
     }, [])
 
     const editCard = useCallback((id, updatedCard) => {
-        setCards(prevCards => prevCards.map(card => 
-            card.id === id ? { ...card, ...updatedCard } : card
-        ))
+        console.log('Editing card in Foreground:', id, updatedCard)
+        dispatch({ 
+            type: EDIT_CARD, 
+            id, 
+            updates: updatedCard
+        })
     }, [])
 
     const handleFileUpload = useCallback((id, file) => {
-        setCards(prevCards => prevCards.map(card => 
-            card.id === id ? { ...card, file: file, filesize: `${(file.size / 1024 / 1024).toFixed(2)}MB` } : card
-        ))
+        dispatch({ 
+            type: EDIT_CARD, 
+            id, 
+            updates: { file, filesize: `${(file.size / 1024 / 1024).toFixed(2)}MB` } 
+        })
         setShowPopup(true)
+    }, [])
+
+    const undo = useCallback(() => {
+        dispatch({ type: UNDO })
+    }, [])
+
+    const redo = useCallback(() => {
+        dispatch({ type: REDO })
     }, [])
 
     const handleMouseMove = useCallback((event) => {
@@ -68,7 +136,7 @@ function Foreground() {
     return (
         <>
             <div ref={ref} className='fixed z-[3] w-full h-full flex gap-5 flex-wrap p-5'>
-                {cards.map((item) => (
+                {state.present.map((item) => (
                     <Card 
                         key={item.id} 
                         data={item} 

@@ -12,5 +12,12 @@ export default {
     },
   },
   plugins: [],
+  safelist: [
+    'bg-red-500',
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-yellow-500',
+    // add other colors as needed
+  ],
 }
 

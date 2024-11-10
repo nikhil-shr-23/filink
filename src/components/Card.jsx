@@ -1,20 +1,41 @@
-import React, { useState, useMemo, useRef } from 'react'
-import { FaRegFileAlt, FaEdit, FaPaperclip } from "react-icons/fa";
+import React, { useState, useCallback, useEffect } from 'react'
+import { FaRegFileAlt, FaEdit, FaPaperclip, FaTrash } from "react-icons/fa";
 import { IoClose } from "react-icons/io5"
 import { motion } from "framer-motion"
 
 function Card({data, reference, onDelete, onEdit, onFileUpload}) {
 	const [isEditing, setIsEditing] = useState(false)
 	const [editedDesc, setEditedDesc] = useState(data.desc)
-	const [taskType, setTaskType] = useState(data.taskType || '')
-	const [priority, setPriority] = useState(data.priority || 'none')
-	const [tagColor, setTagColor] = useState(data.tag.tagColor || 'green') // Add this line
-	const fileInputRef = useRef(null)
+	const [editedTitle, setEditedTitle] = useState(data.tag.tagTitle)
+	const [editedTagColor, setEditedTagColor] = useState(data.tag.tagColor)
+	const [fileInputRef, setFileInputRef] = useState(null);
 
-	const handleEdit = () => {
-		onEdit(data.id, { desc: editedDesc, taskType, priority, tagColor }) // Include tagColor
+	useEffect(() => {
+		setEditedDesc(data.desc)
+		setEditedTitle(data.tag.tagTitle)
+		setEditedTagColor(data.tag.tagColor)
+	}, [data])
+
+	const handleEdit = useCallback(() => {
+		console.log('Editing card:', data.id)
+		console.log('New data:', { 
+			desc: editedDesc, 
+			tag: {
+				...data.tag,
+				tagTitle: editedTitle,
+				tagColor: editedTagColor
+			}
+		})
+		onEdit(data.id, { 
+			desc: editedDesc, 
+			tag: {
+				...data.tag,
+				tagTitle: editedTitle,
+				tagColor: editedTagColor
+			}
+		})
 		setIsEditing(false)
-	}
+	}, [data.id, editedDesc, editedTitle, editedTagColor, onEdit, data.tag])
 
 	const handleFileUpload = (event) => {
 		const file = event.target.files[0];
@@ -23,63 +44,54 @@ function Card({data, reference, onDelete, onEdit, onFileUpload}) {
 		}
 	}
 
-	const triggerFileUpload = () => {
-		fileInputRef.current.click();
+	const handleDelete = () => {
+		onDelete(data.id);
 	}
 
-	return useMemo(() => (
+	const handleFileUploadClick = () => {
+		fileInputRef.click();
+	}
+
+	const getPriorityColor = (priority) => {
+		switch(priority) {
+			case 'high':
+				return 'text-red-500';
+			case 'medium':
+				return 'text-yellow-500';
+			case 'low':
+				return 'text-green-500';
+			default:
+				return 'text-gray-500';
+		}
+	}
+
+	return (
 		<motion.div 
 			drag 
 			dragConstraints={reference} 
 			whileHover={{scale: 1.05}} 
 			dragElastic={0.2} 
-			dragTransition={{
-				bounceStiffness: 300, 
-				bounceDamping: 20
-			}}
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{
-				type: "spring",
-				stiffness: 100,
-				damping: 15
-			}}
-			className='flex-shrink-0 relative w-60 h-72 bg-zinc-900/90 rounded-[45px] text-white py-10 px-8 overflow-hidden'
+			dragTransition={{bounceStiffness: 300, bounceDamping: 20}}
+			className='relative w-60 h-72 rounded-[45px] bg-zinc-900/90 text-white px-8 py-10 overflow-hidden'
 		>
 			<FaRegFileAlt />
 			{isEditing ? (
 				<>
 					<input 
+						value={editedTitle}
+						onChange={(e) => setEditedTitle(e.target.value)}
+						className="mt-5 w-full bg-transparent border-b border-white"
+						placeholder="Enter title"
+					/>
+					<textarea 
 						value={editedDesc}
 						onChange={(e) => setEditedDesc(e.target.value)}
-						className="mt-5 w-full bg-transparent border-b border-white"
+						className="mt-3 w-full bg-transparent border-b border-white resize-none"
+						placeholder="Enter description"
 					/>
 					<select
-						value={taskType}
-						onChange={(e) => setTaskType(e.target.value)}
-						className="mt-2 w-full bg-zinc-800 text-white rounded p-1"
-					>
-						<option value="">Select Task Type</option>
-						<option value="tracker">Tracker</option>
-						<option value="reminder">Reminder</option>
-						<option value="fileholder">File Holder</option>
-						<option value="project">Project</option>
-						<option value="goal">Goal</option>
-						<option value="checklist">Checklist</option>
-					</select>
-					<select
-						value={priority}
-						onChange={(e) => setPriority(e.target.value)}
-						className="mt-2 w-full bg-zinc-800 text-white rounded p-1"
-					>
-						<option value="none">None</option>
-						<option value="low">Low Priority</option>
-						<option value="medium">Medium Priority</option>
-						<option value="high">High Priority</option>
-					</select>
-					<select
-						value={tagColor}
-						onChange={(e) => setTagColor(e.target.value)}
+						value={editedTagColor}
+						onChange={(e) => setEditedTagColor(e.target.value)}
 						className="mt-2 w-full bg-zinc-800 text-white rounded p-1"
 					>
 						<option value="green">Green</option>
@@ -94,8 +106,6 @@ function Card({data, reference, onDelete, onEdit, onFileUpload}) {
 			) : (
 				<>
 					<p className='text-sm leading-tight mt-5 font-semibold'>{data.desc}</p>
-					<p className='text-xs mt-2 text-gray-400'>Type: {data.taskType || 'Not specified'}</p>
-					<p className='text-xs mt-1 text-gray-400'>Priority: {data.priority || 'None'}</p>
 				</>
 			)}
 			{data.file && (
@@ -106,41 +116,53 @@ function Card({data, reference, onDelete, onEdit, onFileUpload}) {
 			)}
 			<div className='footer absolute bottom-0 w-full left-0'>
 				<div className='flex items-center justify-between py-3 px-8 mb-3'>
-					<h5>{data.filesize}</h5>
-					<div className="flex">
-						<label className='w-7 h-7 bg-zinc-600 rounded-full justify-center flex items-center mr-2 cursor-pointer'>
-							<input 
-								type="file" 
-								className="hidden" 
-								onChange={handleFileUpload}
-							/>
-							<FaPaperclip size=".9rem" color="#fff"/>
-						</label>
-						<span className='w-7 h-7 bg-zinc-600 rounded-full justify-center flex items-center mr-2 cursor-pointer' onClick={() => setIsEditing(!isEditing)}>
-							<FaEdit size=".9rem" color="#fff"/>
-						</span>
-						<span className='w-7 h-7 bg-zinc-600 rounded-full justify-center flex items-center cursor-pointer' onClick={() => onDelete(data.id)}>
-							<IoClose/>
+					<div className='flex items-center gap-2'>
+						<span className='w-7 h-7 bg-zinc-600 rounded-full flex items-center justify-center cursor-pointer' onClick={handleDelete}>
+							<FaTrash size={14} />
+							</span>
+						<span className='w-7 h-7 bg-zinc-600 rounded-full flex items-center justify-center cursor-pointer' onClick={handleFileUploadClick}>
+							<FaPaperclip size={14} />
+							</span>
+						<span className='w-7 h-7 bg-zinc-600 rounded-full flex items-center justify-center cursor-pointer'>
+							{isEditing ? (
+								<IoClose size={14} onClick={() => setIsEditing(false)} />
+							) : (
+								<FaEdit size={14} onClick={() => setIsEditing(true)} />
+							)}
 						</span>
 					</div>
 				</div>
 				{data.tag.isOpen && (
 					<div 
-						className={`tag w-full h-10 bg-${data.tag.tagColor}-500 flex items-center justify-center cursor-pointer`}
-						onClick={triggerFileUpload}
+						className={`tag w-full py-4 ${getTagColorClass(data.tag.tagColor)} flex items-center justify-center`}
 					>
-						<h3 className='text-sm font-sf-pro-display'>{data.tag.tagTitle}</h3>
-					</div> 
+						<h3 className='text-sm font-semibold'>{data.tag.tagTitle}</h3>
+					</div>
 				)}
 			</div>
 			<input 
 				type="file" 
-				ref={fileInputRef}
+				ref={setFileInputRef}
 				className="hidden" 
 				onChange={handleFileUpload}
 			/>
 		</motion.div>
-	), [data, reference, isEditing, editedDesc, taskType, priority, tagColor, onDelete, onEdit, onFileUpload])
+	)
+}
+
+function getTagColorClass(color) {
+	switch (color) {
+		case 'green':
+			return 'bg-green-600';
+		case 'blue':
+			return 'bg-blue-600';
+		case 'red':
+			return 'bg-red-600';
+		case 'yellow':
+			return 'bg-yellow-600';
+		default:
+			return 'bg-gray-600';
+	}
 }
 
 export default Card

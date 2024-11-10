@@ -11,7 +11,7 @@ function AddCardForm({ onAdd, onClose }) {
     const [file, setFile] = useState(null)
     const [dueDate, setDueDate] = useState(null)
     const [taskType, setTaskType] = useState('')
-    const [isColorDropdownOpen, setIsColorDropdownOpen] = useState(false)
+    const [isColorDropdownOpen, setIsColorDropdownOpen] = useState(false) // Add this line
 
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -19,13 +19,10 @@ function AddCardForm({ onAdd, onClose }) {
         onAdd({
             title,
             desc,
-            filesize: file ? `${(file.size / 1024 / 1024).toFixed(2)}MB` : "0mb",
             close: false,
             tag: { isOpen: true, tagTitle: title, tagColor: tagColor },
-            file: file,
-            dueDate: dueDate,
-            priority: priority,
             taskType: taskType
+            // Remove filesize from here as it's set in addCard function
         })
         onClose()
     }
@@ -132,7 +129,6 @@ function AddCardForm({ onAdd, onClose }) {
                             required
                         >
                             <option value="">Select Task Type</option>
-                            <option value="tracker">Tracker</option>
                             <option value="reminder">Reminder</option>
                             <option value="fileholder">File Holder</option>
                             <option value="project">Project</option>
